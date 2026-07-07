@@ -1,0 +1,3 @@
+local addonName, IFX = ...
+
+IFX.Overlay = {}
