@@ -9,6 +9,7 @@ SpellEffects.lua
 # Modular Spell Configurations
 Spells\Warlock\Destruction\Destruction.lua
 Spells\Warlock\Affliction\Affliction.lua
+Spells\DeathKnight\Common\Common.lua
 Spells\DeathKnight\Frost\Frost.lua
 
 Overlay.lua

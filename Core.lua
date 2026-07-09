@@ -76,8 +76,8 @@ SlashCmdList["IMMERSIONFX"] = function(msg)
         IFX.db.global.enabled = not IFX.db.global.enabled
         print("|cff00ccff[IFX]|r Effects are now " .. (IFX.db.global.enabled and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"))
     elseif msg == "test" then
-        -- Placeholder for testing the engine later
-        print("|cff00ccff[IFX]|r Test command triggered. (EffectEngine not yet implemented)")
+        print("|cff00ccff[IFX]|r Testing Death Strike (Spell ID 49998)...")
+        IFX.Engine:PlaySpell(49998, "UNIT_SPELLCAST_SUCCEEDED")
     else
         print("|cff00ccff[ImmersionFX]|r Commands:")
         print("  /ifx toggle - Enable or disable all effects")
