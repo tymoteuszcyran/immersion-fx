@@ -3,6 +3,38 @@ local addonName, IFX = ...
 IFX.Animation = {}
 local Anim = IFX.Animation
 
+
+-- Spectral Reverse Drift for Ghostly/Spiritual Casts (Haunt)
+function Anim:PlaySpectralDrift(effectData, dynamicDuration)
+    local castDuration = dynamicDuration or effectData.castDuration or 1.5
+    local driftOutAmount = (effectData.driftOut or 2.5) * IFX.Config:GetIntensity()
+    local glideInDuration = effectData.glideInDuration or 0.35
+
+    -- PHASE 1: The Out-of-Body Drift (Slowly Zoom Out during cast)
+    local steps = 25
+    local stepDelay = castDuration / steps
+    local zoomOutPerStep = driftOutAmount / steps
+
+    for i = 1, steps do
+        C_Timer.After(stepDelay * (i - 1), function()
+            CameraZoomOut(zoomOutPerStep)
+        end)
+    end
+
+    -- PHASE 2: The Eerie Return (Swiftly Glide back in on finish)
+    C_Timer.After(castDuration, function()
+        local glideSteps = 12
+        local glideDelay = glideInDuration / glideSteps
+        local zoomInPerStep = driftOutAmount / glideSteps
+
+        for j = 1, glideSteps do
+            C_Timer.After(glideDelay * (j - 1), function()
+                CameraZoomIn(zoomInPerStep)
+            end)
+        end
+    end)
+end
+
 -- Pure Kinetic Camera Sequence (Central Zoom & Recoil)
 function Anim:PlayCinematicShake(effectData, dynamicDuration)
     local chargeDuration = dynamicDuration or effectData.chargeDuration or 2.0
@@ -37,23 +69,80 @@ function Anim:PlayCinematicShake(effectData, dynamicDuration)
     end)
 end
 
--- Snappy Forward-and-Back Cinematic Pulse for Instant Casts
-function Anim:PlayInstantPulse(effectData)
-    local intensity = (effectData.intensity or 1.2) * IFX.Config:GetIntensity()
-    local snapInDuration = effectData.snapInDuration or 0.08
-    local fadeOutDuration = effectData.fadeOutDuration or 0.25
 
-    -- PHASE 1: The Snappy Bite (Fast Zoom In)
-    CameraZoomIn(intensity)
+-- Pure Kinetic Camera Sequence (Central Zoom & Recoil) - Fixed Drift
+function Anim:PlayCinematicShake(effectData, dynamicDuration)
+    local chargeDuration = dynamicDuration or effectData.chargeDuration or 2.0
+    local zoomInAmount = (effectData.zoomIn or 2.5) * IFX.Config:GetIntensity()
+    local recoilAmount = (effectData.recoil or 4.0) * IFX.Config:GetIntensity()
 
-    -- PHASE 2: The Smooth Release (Gradual Zoom Out back to baseline)
-    local steps = 8
-    local stepDelay = fadeOutDuration / steps
-    local zoomOutPerStep = intensity / steps
+    -- 1. Lock the exact baseline distance before the cast begins
+    local baselineDistance = GetCameraZoom()
+
+    -- PHASE 1: The Build-Up (Slow track-in during the cast)
+    local steps = 30
+    local stepDelay = chargeDuration / steps
+    local zoomPerStep = zoomInAmount / steps
 
     for i = 1, steps do
-        C_Timer.After(snapInDuration + (stepDelay * (i - 1)), function()
-            CameraZoomOut(zoomOutPerStep)
+        C_Timer.After(stepDelay * (i - 1), function()
+            CameraZoomIn(zoomPerStep)
         end)
     end
+
+    -- PHASE 2 & 3: The Recoil and Absolute Recovery
+    C_Timer.After(chargeDuration, function()
+        -- The violently sharp kickback blast
+        CameraZoomOut(recoilAmount)
+
+        -- Give the camera engine 0.25 seconds to physically fly backward and decelerate, 
+        -- then calculate the exact distance needed to reel it home.
+        C_Timer.After(0.25, function()
+            local currentDistance = GetCameraZoom()
+            local difference = currentDistance - baselineDistance
+            
+            -- If we are further out than baseline, zoom in smoothly.
+            if difference > 0 then
+                CameraZoomIn(difference)
+            -- Failsafe: If the recoil slammed us into a wall and we are actually too close, push back out!
+            elseif difference < 0 then
+                CameraZoomOut(math.abs(difference))
+            end
+        end)
+    end)
+end
+
+-- NEW: Heavy Grounded Vertical Cleave for Obliterate
+function Anim:PlayHeavyCleave(effectData)
+    local intensity = (effectData.intensity or 2.0) * IFX.Config:GetIntensity()
+    local verticalLift = effectData.verticalLift or 1.5
+    local holdDuration = effectData.holdDuration or 0.08
+    local recoveryDuration = effectData.recoveryDuration or 0.35
+
+    -- Get baseline vertical offset so we return to your exact original UI layout
+    local baselineVertical = tonumber(GetCVar("test_cameraVerticalOffset")) or 0
+
+    -- PHASE 1: The Heavy Impact Slam (Instant Zoom In + Vertical Lift)
+    CameraZoomIn(intensity)
+    SetCVar("test_cameraVerticalOffset", baselineVertical + verticalLift)
+
+    -- PHASE 2 & 3: The Heavy Hold and Smooth Recovery Ease-Out
+    local steps = 12
+    local stepDelay = recoveryDuration / steps
+    local zoomOutPerStep = intensity / steps
+    local verticalDropPerStep = verticalLift / steps
+
+    for i = 1, steps do
+        C_Timer.After(holdDuration + (stepDelay * (i - 1)), function()
+            CameraZoomOut(zoomOutPerStep)
+            
+            local currentVertical = (baselineVertical + verticalLift) - (verticalDropPerStep * i)
+            SetCVar("test_cameraVerticalOffset", currentVertical)
+        end)
+    end
+    
+    -- Absolute fallback safety cleanup to guarantee baseline is perfectly restored
+    C_Timer.After(holdDuration + recoveryDuration + 0.05, function()
+        SetCVar("test_cameraVerticalOffset", baselineVertical)
+    end)
 end

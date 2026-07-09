@@ -12,9 +12,13 @@ function Engine:PlaySpell(spellID, eventType, dynamicDuration)
         if effect.type == "cinematic_shake" and eventType == "UNIT_SPELLCAST_START" then
             IFX.Animation:PlayCinematicShake(effect, dynamicDuration)
             
-        -- Wither / Instant Cast Route
-        elseif effect.type == "instant_pulse" and eventType == "UNIT_SPELLCAST_SUCCEEDED" then
-            IFX.Animation:PlayInstantPulse(effect)
+        -- Haunt / Spectral Route
+        elseif effect.type == "spectral_drift" and eventType == "UNIT_SPELLCAST_START" then
+            IFX.Animation:PlaySpectralDrift(effect, dynamicDuration)
+            
+        -- Obliterate Route
+        elseif effect.type == "heavy_cleave" and eventType == "UNIT_SPELLCAST_SUCCEEDED" then
+            IFX.Animation:PlayHeavyCleave(effect)
         end
     end
 end
