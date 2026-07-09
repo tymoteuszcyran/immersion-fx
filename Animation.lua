@@ -70,13 +70,15 @@ function Anim:PlayCinematicShake(effectData, dynamicDuration)
 end
 
 
--- Pure Kinetic Camera Sequence (Central Zoom & Recoil) - Fixed Drift
+-- Pure Kinetic Camera Sequence (Central Zoom & Recoil with Bulletproof Overshoot)
 function Anim:PlayCinematicShake(effectData, dynamicDuration)
     local chargeDuration = dynamicDuration or effectData.chargeDuration or 2.0
     local zoomInAmount = (effectData.zoomIn or 2.5) * IFX.Config:GetIntensity()
-    local recoilAmount = (effectData.recoil or 4.0) * IFX.Config:GetIntensity()
+    
+    -- How far the camera violently blasts PAST your baseline on release
+    local overshootAmount = 1.2 * IFX.Config:GetIntensity()
 
-    -- 1. Lock the exact baseline distance before the cast begins
+    -- 1. Lock the absolute baseline distance before the cast begins
     local baselineDistance = GetCameraZoom()
 
     -- PHASE 1: The Build-Up (Slow track-in during the cast)
@@ -90,23 +92,28 @@ function Anim:PlayCinematicShake(effectData, dynamicDuration)
         end)
     end
 
-    -- PHASE 2 & 3: The Recoil and Absolute Recovery
+    -- PHASE 2: The Explosive Release (Blast past the baseline)
     C_Timer.After(chargeDuration, function()
-        -- The violently sharp kickback blast
-        CameraZoomOut(recoilAmount)
+        local currentDistance = GetCameraZoom()
+        local distanceToBaseline = baselineDistance - currentDistance
 
-        -- Give the camera engine 0.25 seconds to physically fly backward and decelerate, 
-        -- then calculate the exact distance needed to reel it home.
-        C_Timer.After(0.25, function()
-            local currentDistance = GetCameraZoom()
-            local difference = currentDistance - baselineDistance
-            
-            -- If we are further out than baseline, zoom in smoothly.
-            if difference > 0 then
-                CameraZoomIn(difference)
-            -- Failsafe: If the recoil slammed us into a wall and we are actually too close, push back out!
-            elseif difference < 0 then
-                CameraZoomOut(math.abs(difference))
+        -- Total pushback = the distance lost during cast + the extra overshoot bump
+        local totalPushback = distanceToBaseline + overshootAmount
+
+        if totalPushback > 0 then
+            CameraZoomOut(totalPushback)
+        end
+
+        -- PHASE 3: The Elastic Settle (Smoothly pull back to perfect baseline)
+        -- 0.20s allows the camera to reach the peak of the overshoot without grinding gears
+        C_Timer.After(0.20, function()
+            local finalDistance = GetCameraZoom()
+            local finalCorrection = finalDistance - baselineDistance
+
+            if finalCorrection > 0 then
+                CameraZoomIn(finalCorrection)
+            elseif finalCorrection < 0 then
+                CameraZoomOut(math.abs(finalCorrection))
             end
         end)
     end)
