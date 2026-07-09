@@ -63,8 +63,66 @@ local function PlayVampiricStrike(effectData)
     end)
 end
 
--- Register vampiric_strike as a class-wide DK animation handler
+-- Magnetic Pull & Impact Collision camera animation for Death Grip
+local function PlayGripCollision(effectData)
+    if not IFX.Config:IsEffectTypeEnabled("camera") then return end
+
+    local intensity = (effectData.intensityMultiplier or 1.0) * IFX.Config:GetIntensity()
+
+    local pullZoomOut = (effectData.pullZoomOut or 1.2) * intensity
+    local pullDuration = effectData.pullDuration or 0.30
+    local impactZoomIn = (effectData.impactZoomIn or 0.8) * intensity
+    local impactVerticalDrop = (effectData.impactVerticalDrop or 0.6) * intensity
+    local holdDuration = effectData.holdDuration or 0.05
+    local recoveryDuration = effectData.recoveryDuration or 0.25
+
+    -- Capture baseline state
+    local baselineVertical = tonumber(GetCVar("test_cameraVerticalOffset")) or 0
+    local baselineDistance = GetCameraZoom()
+
+    -- PHASE 1: The Pull (Camera zooms out to frame the incoming target)
+    CameraZoomOut(pullZoomOut)
+
+    -- PHASE 2: The Impact (When target reaches player)
+    C_Timer.After(pullDuration, function()
+        -- Camera drops slightly for slam/grounding feel
+        SetCVar("test_cameraVerticalOffset", baselineVertical - impactVerticalDrop)
+
+        -- Quick zoom-in past baseline to sell collision impact
+        CameraZoomIn(pullZoomOut + impactZoomIn)
+
+        -- PHASE 3: Smooth Recovery (Interpolates camera back to baseline)
+        local steps = 10
+        local stepDelay = recoveryDuration / steps
+        local verticalRaisePerStep = impactVerticalDrop / steps
+        local zoomOutPerStep = impactZoomIn / steps
+
+        for i = 1, steps do
+            C_Timer.After(holdDuration + (stepDelay * (i - 1)), function()
+                CameraZoomOut(zoomOutPerStep)
+                local currentVertical = (baselineVertical - impactVerticalDrop) + (verticalRaisePerStep * i)
+                SetCVar("test_cameraVerticalOffset", currentVertical)
+            end)
+        end
+    end)
+
+    -- Fallback safety cleanup to guarantee baseline is perfectly restored
+    C_Timer.After(pullDuration + holdDuration + recoveryDuration + 0.05, function()
+        SetCVar("test_cameraVerticalOffset", baselineVertical)
+
+        local finalDistance = GetCameraZoom()
+        local drift = finalDistance - baselineDistance
+        if drift > 0 then
+            CameraZoomIn(drift)
+        elseif drift < 0 then
+            CameraZoomOut(math.abs(drift))
+        end
+    end)
+end
+
+-- Register class-wide DK animation handlers
 Anim:Register("vampiric_strike", "UNIT_SPELLCAST_SUCCEEDED", PlayVampiricStrike)
+Anim:Register("grip_collision", "UNIT_SPELLCAST_SUCCEEDED", PlayGripCollision)
 
 -- Death Knight Common Spells Configuration
 local DKCommonProfiles = {
@@ -80,6 +138,19 @@ local DKCommonProfiles = {
             jumpDuration = 0.12,
             holdDuration = 0.05,
             recoveryDuration = 0.28,
+        }
+    },
+    -- Death Grip (Ranged pull with impact collision)
+    [49576] = {
+        {
+            type = "grip_collision",
+            intensityMultiplier = 1.0,
+            pullZoomOut = 1.2,
+            pullDuration = 0.30,
+            impactZoomIn = 0.8,
+            impactVerticalDrop = 0.6,
+            holdDuration = 0.05,
+            recoveryDuration = 0.25,
         }
     }
 }
