@@ -4,10 +4,15 @@
 
 Core.lua
 Config.lua
-Events.lua
 SpellEffects.lua
+
+# Modular Spell Configurations
+Spells\Warlock\Destruction\Destruction.lua
+Spells\Warlock\Affliction\Affliction.lua
+Spells\DeathKnight\Frost\Frost.lua
+
 Overlay.lua
-Animation.lua
 EffectEngine.lua
+Events.lua
 
 # Utils.lua

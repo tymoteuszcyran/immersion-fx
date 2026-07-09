@@ -4,6 +4,18 @@ local addonName, IFX = ...
 IFX.Core = {}
 local Core = IFX.Core
 
+-- Initialize the Animation namespace and dynamic registration API
+IFX.Animation = {
+    Handlers = {}
+}
+
+function IFX.Animation:Register(name, eventType, func)
+    self.Handlers[name] = {
+        eventType = eventType,
+        func = func
+    }
+end
+
 -- Create the main hidden frame for event handling and updates
 Core.Frame = CreateFrame("Frame", "ImmersionFXMainFrame", UIParent)
 

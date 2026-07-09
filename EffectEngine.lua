@@ -8,17 +8,13 @@ function Engine:PlaySpell(spellID, eventType, dynamicDuration)
     if not profile then return end
 
     for _, effect in ipairs(profile) do
-        -- Chaos Bolt Route
-        if effect.type == "cinematic_shake" and eventType == "UNIT_SPELLCAST_START" then
-            IFX.Animation:PlayCinematicShake(effect, dynamicDuration)
-            
-        -- Haunt / Spectral Route
-        elseif effect.type == "spectral_drift" and eventType == "UNIT_SPELLCAST_START" then
-            IFX.Animation:PlaySpectralDrift(effect, dynamicDuration)
-            
-        -- Obliterate Route
-        elseif effect.type == "heavy_cleave" and eventType == "UNIT_SPELLCAST_SUCCEEDED" then
-            IFX.Animation:PlayHeavyCleave(effect)
+        local handler = IFX.Animation.Handlers[effect.type]
+        if handler then
+            if handler.eventType == eventType then
+                handler.func(effect, dynamicDuration)
+            end
+        else
+            IFX:Log("No animation handler registered for: " .. tostring(effect.type), true)
         end
     end
 end
