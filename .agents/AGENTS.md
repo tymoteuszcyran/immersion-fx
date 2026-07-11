@@ -1,6 +1,7 @@
 # ImmersionFX Agent Rules & Guidelines
 
-Welcome to the **ImmersionFX** codebase! ImmersionFX is a World of Warcraft retail addon designed to provide subtle, immersive screen and camera effects during combat. It focuses mostly on camera movement during combat to add immersion to the battle. Each spell effect must be subtle and must not be too intrusive to the gameplay. Also, the primary philosophy is to avoid dizzying and headaches when applying new effects. 
+ImmersionFX is a World of Warcraft retail addon designed to provide subtle, immersive screen and camera effects during combat. It focuses mostly on camera movement during combat to add immersion to the battle. Each spell effect must be subtle and must not be too intrusive to the gameplay. The primary philosophy is to avoid dizzying and headaches when applying new effects. 
+Addon must be complaint with Blizzard's rules and compatible with new API changes that were introduced as part of Midnight's expansion.
 
 Follow these project-specific rules, design patterns, and standards when developing or refactoring code.
 

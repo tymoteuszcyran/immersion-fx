@@ -75,13 +75,38 @@ SlashCmdList["IMMERSIONFX"] = function(msg)
     elseif msg == "toggle" then
         IFX.db.global.enabled = not IFX.db.global.enabled
         print("|cff00ccff[IFX]|r Effects are now " .. (IFX.db.global.enabled and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"))
-    elseif msg == "test" then
-        print("|cff00ccff[IFX]|r Testing Death Strike (Spell ID 49998)...")
-        IFX.Engine:PlaySpell(49998, "UNIT_SPELLCAST_SUCCEEDED")
+    elseif msg == "test" or msg:find("^test%s+") then
+        local targetID = tonumber(msg:match("^test%s+(%d+)"))
+        if targetID then
+            print("|cff00ccff[IFX]|r Testing Spell ID " .. targetID .. "...")
+            local profile = IFX.SpellEffects:GetProfile(targetID)
+            if profile then
+                for _, effect in ipairs(profile) do
+                    local handler = IFX.Animation.Handlers[effect.type]
+                    if handler then
+                        local simulatedDuration = nil
+                        if handler.eventType == "UNIT_SPELLCAST_CHANNEL_START" then
+                            simulatedDuration = 3.0
+                        elseif handler.eventType == "UNIT_SPELLCAST_START" then
+                            simulatedDuration = 1.5
+                        end
+                        handler.func(effect, simulatedDuration)
+                    else
+                        print("|cffff0000[IFX Error]|r No animation handler registered for effect: " .. tostring(effect.type))
+                    end
+                end
+            else
+                print("|cffff0000[IFX Error]|r No spell profile found for ID " .. targetID)
+            end
+        else
+            print("|cff00ccff[IFX]|r Testing Death Strike (Spell ID 49998)...")
+            IFX.Engine:PlaySpell(49998, "UNIT_SPELLCAST_SUCCEEDED")
+        end
     else
         print("|cff00ccff[ImmersionFX]|r Commands:")
         print("  /ifx toggle - Enable or disable all effects")
         print("  /ifx debug  - Toggle debug logging")
-        print("  /ifx test   - Test the current spell effect profile")
+        print("  /ifx test   - Test default spell (Death Strike)")
+        print("  /ifx test <spellID> - Test a specific spell ID (e.g., 1257052 for Dark Harvest)")
     end
 end
