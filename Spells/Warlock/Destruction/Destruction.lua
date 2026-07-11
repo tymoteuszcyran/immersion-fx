@@ -40,15 +40,37 @@ local function PlayCinematicShake(effectData, dynamicDuration)
         end
 
         -- PHASE 3: The Elastic Settle (Smoothly pull back to perfect baseline)
-        -- 0.20s allows the camera to reach the peak of the overshoot without grinding gears
-        C_Timer.After(0.20, function()
-            local finalDistance = GetCameraZoom()
-            local finalCorrection = finalDistance - baselineDistance
+        -- We calculate the exact return amount needed to restore the baseline
+        local returnAmount = pushbackAmount - distanceToBaseline
+        
+        -- Timing parameters for the smooth settle ease-out
+        local recoilDuration = 0.22 -- Allow camera to fully reach peak recoil distance
+        local settleDuration = 0.38 -- Smoothly glide back to baseline
+        local steps = 12
+        local stepDelay = settleDuration / steps
+        local zoomInPerStep = returnAmount / steps
 
-            if finalCorrection > 0 then
-                CameraZoomIn(finalCorrection)
-            elseif finalCorrection < 0 then
-                CameraZoomOut(math.abs(finalCorrection))
+        -- Step-by-step return to avoid sudden directional conflicts and yanky camera snaps
+        C_Timer.After(recoilDuration, function()
+            for i = 1, steps do
+                C_Timer.After(stepDelay * (i - 1), function()
+                    if zoomInPerStep > 0 then
+                        CameraZoomIn(zoomInPerStep)
+                    elseif zoomInPerStep < 0 then
+                        CameraZoomOut(math.abs(zoomInPerStep))
+                    end
+                end)
+            end
+        end)
+
+        -- Absolute fallback safety cleanup at the end to guarantee perfect alignment
+        C_Timer.After(recoilDuration + settleDuration + 0.05, function()
+            local finalDistance = GetCameraZoom()
+            local drift = finalDistance - baselineDistance
+            if drift > 0 then
+                CameraZoomIn(drift)
+            elseif drift < 0 then
+                CameraZoomOut(math.abs(drift))
             end
         end)
     end)
