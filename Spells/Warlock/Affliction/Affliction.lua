@@ -120,6 +120,74 @@ end
 -- Register soul_siphon as an Affliction-specific channeled animation handler
 Anim:Register("soul_siphon", "UNIT_SPELLCAST_CHANNEL_START", PlaySoulSiphon)
 
+-- Channeled Ethereal Crane Camera Sequence (Subtle, slow linear zoom-in and vertical crane lift)
+local function PlayEtherealCrane(effectData, dynamicDuration)
+    if not IFX.Config:IsEffectTypeEnabled("camera") then return end
+
+    local duration = dynamicDuration or effectData.duration or 5.0
+    local intensity = IFX.Config:GetIntensity()
+    local zoomInAmount = (effectData.zoomInAmount or 0.8) * intensity
+    local liftHeight = (effectData.liftHeight or 0.5) * intensity
+    local recoveryDuration = effectData.recoveryDuration or 0.5
+
+    -- 1. Capture baseline state
+    local baselineVertical = tonumber(GetCVar("test_cameraVerticalOffset")) or 0
+    local baselineDistance = GetCameraZoom()
+
+    -- PHASE 1: The Ethereal Crane Rise (Slow linear zoom-in + vertical lift)
+    local steps = 30
+    local stepDelay = duration / steps
+    local zoomPerStep = zoomInAmount / steps
+
+    for i = 1, steps do
+        C_Timer.After(stepDelay * (i - 1), function()
+            local t = i / steps
+            -- Zoom in (unidirectional)
+            CameraZoomIn(zoomPerStep)
+            -- Vertical lift (linear increase)
+            SetCVar("test_cameraVerticalOffset", baselineVertical + (liftHeight * t))
+        end)
+    end
+
+    -- PHASE 2: Smooth Recovery (Return zoom and height back to baseline)
+    C_Timer.After(duration, function()
+        local currentDistance = GetCameraZoom()
+        local returnDistance = baselineDistance - currentDistance
+
+        local settleSteps = 15
+        local settleDelay = recoveryDuration / settleSteps
+        local zoomOutPerStep = returnDistance / settleSteps
+
+        for j = 1, settleSteps do
+            C_Timer.After(settleDelay * (j - 1), function()
+                local t = j / settleSteps
+                -- Smoothly lower the vertical height back to baseline
+                SetCVar("test_cameraVerticalOffset", baselineVertical + (liftHeight * (1 - t)))
+                -- Zoom out back to baseline
+                if zoomOutPerStep > 0 then
+                    CameraZoomOut(zoomOutPerStep)
+                end
+            end)
+        end
+    end)
+
+    -- Fallback safety cleanup to guarantee baseline is perfectly restored
+    C_Timer.After(duration + recoveryDuration + 0.05, function()
+        SetCVar("test_cameraVerticalOffset", baselineVertical)
+
+        local finalDistance = GetCameraZoom()
+        local drift = finalDistance - baselineDistance
+        if drift > 0 then
+            CameraZoomIn(drift)
+        elseif drift < 0 then
+            CameraZoomOut(math.abs(drift))
+        end
+    end)
+end
+
+-- Register ethereal_crane as an Affliction-specific channeled animation handler
+Anim:Register("ethereal_crane", "UNIT_SPELLCAST_CHANNEL_START", PlayEtherealCrane)
+
 -- Dark Harvest profile (shared across alternative IDs)
 local DarkHarvestProfile = {
     {
@@ -128,6 +196,17 @@ local DarkHarvestProfile = {
         pulseHeight = 1.2,        -- Vertical bobbing amplitude (yards)
         pulseStrength = 0.8,      -- Zoom velocity pulse strength (must be < 1.0 for smoothness)
         numPulses = 3,            -- Number of vertical bobbing cycles
+        recoveryDuration = 0.50,  -- Time to smoothly return to baseline zoom (seconds)
+    }
+}
+
+-- Drain Soul profile (Ethereal Crane)
+local DrainSoulProfile = {
+    {
+        type = "ethereal_crane",
+        duration = 5.0,           -- Standard baseline duration for Drain Soul channel (seconds)
+        zoomInAmount = 0.8,       -- Very subtle linear zoom-in (yards)
+        liftHeight = 0.5,         -- Very subtle vertical crane lift (yards)
         recoveryDuration = 0.50,  -- Time to smoothly return to baseline zoom (seconds)
     }
 }
@@ -147,6 +226,9 @@ local AfflictionProfiles = {
     [1257052] = DarkHarvestProfile,
     [387166] = DarkHarvestProfile,
     [447784] = DarkHarvestProfile,
+    
+    -- Drain Soul (Channeled Ethereal Crane)
+    [198590] = DrainSoulProfile,
 }
 
 SpellEffects:RegisterProfiles(AfflictionProfiles)
