@@ -6,9 +6,15 @@ local EventFrame = CreateFrame("Frame", "ImmersionFXEventFrame", UIParent)
 EventFrame:RegisterUnitEvent("UNIT_SPELLCAST_START", "player")
 EventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 EventFrame:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
+EventFrame:RegisterUnitEvent("UNIT_SPELLCAST_STOP", "player")
 
 EventFrame:SetScript("OnEvent", function(self, event, unit, castGUID, spellID)
     if not IFX.Config:IsEnabled() then return end
+
+    if event == "UNIT_SPELLCAST_STOP" then
+        IFX.Engine:StopSpell(spellID, event)
+        return
+    end
 
     local dynamicDuration = nil
 

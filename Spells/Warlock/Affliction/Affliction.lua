@@ -188,6 +188,149 @@ end
 -- Register ethereal_crane as an Affliction-specific channeled animation handler
 Anim:Register("ethereal_crane", "UNIT_SPELLCAST_CHANNEL_START", PlayEtherealCrane)
 
+-- Track the active cast state for Seed of Corruption to handle cast-recoil and interruptions
+local seedCastActive = nil
+
+-- Gravitational Siphon (Seed of Corruption cast charge-up)
+local function PlayGravitationalSiphonStart(effectData, dynamicDuration)
+    if not IFX.Config:IsEffectTypeEnabled("camera") then return end
+
+    local castDuration = dynamicDuration or effectData.castDuration or 2.5
+    local intensity = IFX.Config:GetIntensity()
+    local driftOutAmount = (effectData.driftOut or 1.8) * intensity
+
+    -- Capture baseline state
+    local baselineDistance = GetCameraZoom()
+
+    seedCastActive = {
+        baselineDistance = baselineDistance,
+        driftOutAmount = driftOutAmount,
+        accumulatedZoomOut = 0,
+        isFinished = false
+    }
+
+    local currentCast = seedCastActive
+    local steps = 25
+    local stepDelay = castDuration / steps
+    local zoomOutPerStep = driftOutAmount / steps
+
+    -- PHASE 1: The Vacuum Zoom-Out
+    for i = 1, steps do
+        C_Timer.After(stepDelay * (i - 1), function()
+            if seedCastActive == currentCast and not currentCast.isFinished then
+                CameraZoomOut(zoomOutPerStep)
+                currentCast.accumulatedZoomOut = currentCast.accumulatedZoomOut + zoomOutPerStep
+            end
+        end)
+    end
+end
+
+-- Gravitational Siphon Interruption Cleanup
+local function StopGravitationalSiphonStart(effectData)
+    if not seedCastActive then return end
+
+    local currentCast = seedCastActive
+    currentCast.isFinished = true
+    seedCastActive = nil
+
+    local accumulatedZoom = currentCast.accumulatedZoomOut
+    local recoveryDuration = 0.3
+
+    if accumulatedZoom > 0 then
+        local steps = 10
+        local stepDelay = recoveryDuration / steps
+        local zoomInPerStep = accumulatedZoom / steps
+
+        for i = 1, steps do
+            C_Timer.After(stepDelay * (i - 1), function()
+                CameraZoomIn(zoomInPerStep)
+            end)
+        end
+    end
+
+    -- Safety check to ensure perfect baseline return after recovery
+    C_Timer.After(recoveryDuration + 0.05, function()
+        local finalDistance = GetCameraZoom()
+        local drift = finalDistance - currentCast.baselineDistance
+        if drift > 0 then
+            CameraZoomIn(drift)
+        elseif drift < 0 then
+            CameraZoomOut(math.abs(drift))
+        end
+    end)
+end
+
+-- Gravitational Siphon Release (Seed of Corruption launch / instant cast success)
+local function PlayGravitationalSiphonSuccess(effectData)
+    if not IFX.Config:IsEffectTypeEnabled("camera") then return end
+
+    local intensity = IFX.Config:GetIntensity()
+    local recoilAmount = (effectData.recoil or 0.6) * intensity
+    local shakeDuration = effectData.shakeDuration or 0.15
+    local recoveryDuration = 0.25
+
+    local baselineVertical = tonumber(GetCVar("test_cameraVerticalOffset")) or 0
+    local baselineDistance = GetCameraZoom()
+    local targetBaseline = baselineDistance
+
+    -- 1. CAMERA DISTANCE MOVEMENT
+    if seedCastActive then
+        -- Casted Path: Snappy snapback to baseline
+        local currentCast = seedCastActive
+        currentCast.isFinished = true
+        seedCastActive = nil -- clear active cast reference
+
+        targetBaseline = currentCast.baselineDistance
+        local accumulatedZoom = currentCast.accumulatedZoomOut
+
+        if accumulatedZoom > 0 then
+            local steps = 10
+            local stepDelay = recoveryDuration / steps
+            local zoomInPerStep = accumulatedZoom / steps
+
+            for i = 1, steps do
+                C_Timer.After(stepDelay * (i - 1), function()
+                    CameraZoomIn(zoomInPerStep)
+                end)
+            end
+        end
+    else
+        -- Instant Path: Quick recoil pulse (zoom-in then zoom-out)
+        CameraZoomIn(recoilAmount)
+        C_Timer.After(0.08, function()
+            CameraZoomOut(recoilAmount)
+        end)
+    end
+
+    -- 2. HEAVY IMPACT SHUDDER (Vertical offset shift)
+    SetCVar("test_cameraVerticalOffset", baselineVertical - (0.4 * intensity))
+    
+    C_Timer.After(0.05, function()
+        SetCVar("test_cameraVerticalOffset", baselineVertical + (0.2 * intensity))
+    end)
+
+    C_Timer.After(0.10, function()
+        SetCVar("test_cameraVerticalOffset", baselineVertical)
+    end)
+
+    -- Fallback safety cleanup to guarantee baseline vertical and zoom are restored
+    C_Timer.After(recoveryDuration + 0.05, function()
+        SetCVar("test_cameraVerticalOffset", baselineVertical)
+
+        local finalDistance = GetCameraZoom()
+        local drift = finalDistance - targetBaseline
+        if drift > 0 then
+            CameraZoomIn(drift)
+        elseif drift < 0 then
+            CameraZoomOut(math.abs(drift))
+        end
+    end)
+end
+
+-- Register Gravitational Siphon animation handlers
+Anim:Register("gravitational_siphon_start", "UNIT_SPELLCAST_START", PlayGravitationalSiphonStart, StopGravitationalSiphonStart)
+Anim:Register("gravitational_siphon_success", "UNIT_SPELLCAST_SUCCEEDED", PlayGravitationalSiphonSuccess)
+
 -- Dark Harvest profile (shared across alternative IDs)
 local DarkHarvestProfile = {
     {
@@ -229,6 +372,19 @@ local AfflictionProfiles = {
     
     -- Drain Soul (Channeled Ethereal Crane)
     [198590] = DrainSoulProfile,
+
+    -- Seed of Corruption (Gravitational Siphon & Recoil)
+    [27243] = {
+        {
+            type = "gravitational_siphon_start",
+            driftOut = 1.8,
+        },
+        {
+            type = "gravitational_siphon_success",
+            recoil = 0.6,
+            shakeDuration = 0.15,
+        }
+    },
 }
 
 SpellEffects:RegisterProfiles(AfflictionProfiles)

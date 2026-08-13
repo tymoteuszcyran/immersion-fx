@@ -9,10 +9,11 @@ IFX.Animation = {
     Handlers = {}
 }
 
-function IFX.Animation:Register(name, eventType, func)
+function IFX.Animation:Register(name, eventType, func, stopFunc)
     self.Handlers[name] = {
         eventType = eventType,
-        func = func
+        func = func,
+        stopFunc = stopFunc
     }
 end
 

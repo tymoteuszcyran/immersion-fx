@@ -18,3 +18,15 @@ function Engine:PlaySpell(spellID, eventType, dynamicDuration)
         end
     end
 end
+
+function Engine:StopSpell(spellID, eventType)
+    local profile = IFX.SpellEffects:GetProfile(spellID)
+    if not profile then return end
+
+    for _, effect in ipairs(profile) do
+        local handler = IFX.Animation.Handlers[effect.type]
+        if handler and handler.stopFunc then
+            handler.stopFunc(effect)
+        end
+    end
+end
