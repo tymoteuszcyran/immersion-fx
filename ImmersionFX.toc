@@ -4,6 +4,11 @@
 
 Core.lua
 Config.lua
+
+# Modular Camera Placement System
+Camera\Camera.lua
+Camera\Profiles\HighImmersion.lua
+
 SpellEffects.lua
 
 # Modular Spell Configurations
@@ -15,5 +20,8 @@ Spells\DeathKnight\Frost\Frost.lua
 Overlay.lua
 EffectEngine.lua
 Events.lua
+
+# Settings Interface
+UI.lua
 
 # Utils.lua

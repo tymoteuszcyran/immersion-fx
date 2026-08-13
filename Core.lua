@@ -38,7 +38,13 @@ end
 
 -- Startup function (called on PLAYER_LOGIN)
 function Core:OnLogin()
-    -- We will call setup methods for other modules (like Overlay) here later
+    -- Initialize Camera placement and UI options panel
+    if IFX.Camera and IFX.Camera.Initialize then
+        IFX.Camera:Initialize()
+    end
+    if IFX.UI and IFX.UI.CreateOptionsPanel then
+        IFX.UI:CreateOptionsPanel()
+    end
     print("|cff00ccff[ImmersionFX]|r Loaded successfully. Type /ifx for options.")
 end
 
@@ -70,12 +76,21 @@ SlashCmdList["IMMERSIONFX"] = function(msg)
     -- Clean up the input string
     msg = msg and string.lower(strtrim(msg)) or ""
 
-    if msg == "debug" then
+    if msg == "config" or msg == "options" or msg == "menu" or msg == "gui" then
+        if IFX.UI and IFX.UI.OpenSettings then
+            IFX.UI:OpenSettings()
+        end
+    elseif msg == "debug" then
         IFX.db.global.debugMode = not IFX.db.global.debugMode
         print("|cff00ccff[IFX]|r Debug mode is now " .. (IFX.db.global.debugMode and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
     elseif msg == "toggle" then
         IFX.db.global.enabled = not IFX.db.global.enabled
         print("|cff00ccff[IFX]|r Effects are now " .. (IFX.db.global.enabled and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"))
+    elseif msg == "camera" then
+        local current = IFX.Config:IsCameraPlacementEnabled()
+        IFX.Config:SetCameraPlacementEnabled(not current)
+        IFX.Camera:Refresh()
+        print("|cff00ccff[IFX]|r Camera placement is now " .. (not current and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"))
     elseif msg == "test" or msg:find("^test%s+") then
         local targetID = tonumber(msg:match("^test%s+(%d+)"))
         if targetID then
@@ -105,9 +120,11 @@ SlashCmdList["IMMERSIONFX"] = function(msg)
         end
     else
         print("|cff00ccff[ImmersionFX]|r Commands:")
+        print("  /ifx config - Open the settings panel GUI")
+        print("  /ifx camera - Toggle custom camera placement on/off")
         print("  /ifx toggle - Enable or disable all effects")
         print("  /ifx debug  - Toggle debug logging")
         print("  /ifx test   - Test default spell (Death Strike)")
-        print("  /ifx test <spellID> - Test a specific spell ID (e.g., 1257052 for Dark Harvest)")
+        print("  /ifx test <spellID> - Test a specific spell ID")
     end
 end

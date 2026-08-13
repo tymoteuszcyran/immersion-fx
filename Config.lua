@@ -18,6 +18,12 @@ Config.Defaults = {
         enableVignettes = true,
         enableCamera = true,
         enableSounds = true,
+
+        -- Baseline Camera Placement Configuration
+        cameraPlacement = {
+            enabled = false,
+            activeProfile = "high_immersion",
+        },
     }
 }
 
@@ -60,8 +66,16 @@ function Config:IsEnabled()
     return IFX.db.global.enabled
 end
 
+function Config:SetEnabled(enabled)
+    IFX.db.global.enabled = enabled
+end
+
 function Config:GetIntensity()
     return IFX.db.global.intensityMultiplier
+end
+
+function Config:SetIntensity(val)
+    IFX.db.global.intensityMultiplier = math.max(0.1, math.min(2.0, val))
 end
 
 function Config:IsEffectTypeEnabled(effectType)
@@ -79,4 +93,39 @@ function Config:IsEffectTypeEnabled(effectType)
     end
     
     return true -- Default to true if the type isn't tracked
+end
+
+function Config:SetEffectTypeEnabled(effectType, enabled)
+    local keys = {
+        flash = "enableFlashes",
+        pulse = "enablePulses",
+        vignette = "enableVignettes",
+        camera = "enableCamera",
+        sound = "enableSounds"
+    }
+    local key = keys[effectType]
+    if key then
+        IFX.db.global[key] = enabled
+    end
+end
+
+-- Camera Placement Settings API
+function Config:IsCameraPlacementEnabled()
+    return IFX.db and IFX.db.global.cameraPlacement and IFX.db.global.cameraPlacement.enabled or false
+end
+
+function Config:SetCameraPlacementEnabled(enabled)
+    if IFX.db and IFX.db.global.cameraPlacement then
+        IFX.db.global.cameraPlacement.enabled = enabled
+    end
+end
+
+function Config:GetCameraActiveProfile()
+    return IFX.db and IFX.db.global.cameraPlacement and IFX.db.global.cameraPlacement.activeProfile or "high_immersion"
+end
+
+function Config:SetCameraActiveProfile(profileId)
+    if IFX.db and IFX.db.global.cameraPlacement then
+        IFX.db.global.cameraPlacement.activeProfile = profileId
+    end
 end
