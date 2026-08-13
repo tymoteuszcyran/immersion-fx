@@ -1,6 +1,7 @@
 ## Interface: 120100
 ## Title: ImmersionFX
 ## Notes: Adds subtle immersive screen effects for combat and gameplay.
+## SavedVariables: ImmersionFXDB
 
 Core.lua
 Config.lua

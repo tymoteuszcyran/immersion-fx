@@ -23,6 +23,7 @@ Config.Defaults = {
         cameraPlacement = {
             enabled = false,
             activeProfile = "high_immersion",
+            baselineCVars = {},
         },
     }
 }
