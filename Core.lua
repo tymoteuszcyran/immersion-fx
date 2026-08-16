@@ -29,8 +29,53 @@ function IFX:Log(message, isError)
     print(prefix .. " " .. tostring(message))
 end
 
+-- Suppress Blizzard's recurring ActionCam / experimental CVar confirmation popup on reload/login
+function Core:SuppressExperimentalWarnings()
+    -- Unregister event from UIParent to prevent Blizzard from triggering the dialog
+    if UIParent and UIParent.UnregisterEvent then
+        UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
+    end
+
+    -- Keep StaticPopupDialogs definition valid to avoid modern 11.x assertion errors,
+    -- but ensure it hides immediately if shown
+    if StaticPopupDialogs then
+        if not StaticPopupDialogs["EXPERIMENTAL_CVAR_WARNING"] then
+            StaticPopupDialogs["EXPERIMENTAL_CVAR_WARNING"] = {
+                text = "",
+                button1 = OKAY or "OK",
+                timeout = 0,
+                whileDead = 1,
+                hideOnEscape = 1,
+            }
+        end
+        StaticPopupDialogs["EXPERIMENTAL_CVAR_WARNING"].OnShow = function(self)
+            self:Hide()
+        end
+    end
+
+    -- Hook StaticPopup_Show to immediately dismiss the popup
+    if not self.hookedStaticPopup and type(hooksecurefunc) == "function" then
+        self.hookedStaticPopup = true
+        hooksecurefunc("StaticPopup_Show", function(which)
+            if which == "EXPERIMENTAL_CVAR_WARNING" then
+                if type(StaticPopup_Hide) == "function" then
+                    StaticPopup_Hide("EXPERIMENTAL_CVAR_WARNING")
+                end
+            end
+        end)
+    end
+
+    if type(StaticPopup_Hide) == "function" then
+        StaticPopup_Hide("EXPERIMENTAL_CVAR_WARNING")
+    end
+end
+
+-- Suppress immediately upon file execution in case popup triggers early
+Core:SuppressExperimentalWarnings()
+
 -- Initialization function (called on ADDON_LOADED)
 function Core:Initialize()
+    self:SuppressExperimentalWarnings()
     -- Delegate database setup to Config.lua
     IFX.Config:InitializeDB()
     IFX:Log("Initialization complete. DB loaded.")
@@ -38,7 +83,11 @@ end
 
 -- Startup function (called on PLAYER_LOGIN)
 function Core:OnLogin()
-    -- Initialize Camera placement and UI options panel
+    self:SuppressExperimentalWarnings()
+    -- Initialize Camera placement, UI settings, and options panel
+    if IFX.Config and IFX.Config.ApplyUISettings then
+        IFX.Config:ApplyUISettings()
+    end
     if IFX.Camera and IFX.Camera.Initialize then
         IFX.Camera:Initialize()
     end

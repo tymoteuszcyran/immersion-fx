@@ -25,6 +25,11 @@ Config.Defaults = {
             activeProfile = "high_immersion",
             baselineCVars = {},
         },
+
+        -- UI & Text Configuration
+        ui = {
+            floatingTextScale = 1.0, -- In-world floating combat text scale (WorldTextScale_v2)
+        },
     }
 }
 
@@ -129,4 +134,32 @@ function Config:SetCameraActiveProfile(profileId)
     if IFX.db and IFX.db.global.cameraPlacement then
         IFX.db.global.cameraPlacement.activeProfile = profileId
     end
+end
+
+-- ==========================================
+-- UI Settings API
+-- ==========================================
+
+function Config:GetFloatingTextScale()
+    if IFX.db and IFX.db.global and IFX.db.global.ui and IFX.db.global.ui.floatingTextScale ~= nil then
+        return IFX.db.global.ui.floatingTextScale
+    end
+    return 1.0
+end
+
+function Config:SetFloatingTextScale(scale)
+    local num = tonumber(scale) or 1.0
+    num = math.max(0.5, math.min(2.5, num))
+    if IFX.db and IFX.db.global then
+        if not IFX.db.global.ui then
+            IFX.db.global.ui = {}
+        end
+        IFX.db.global.ui.floatingTextScale = num
+    end
+    pcall(SetCVar, "WorldTextScale_v2", tostring(num))
+end
+
+function Config:ApplyUISettings()
+    local scale = self:GetFloatingTextScale()
+    pcall(SetCVar, "WorldTextScale_v2", tostring(scale))
 end

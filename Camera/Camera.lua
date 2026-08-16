@@ -118,6 +118,11 @@ function Camera:ApplyProfile(profileId)
         return
     end
 
+    -- Ensure warning popups are suppressed before applying CVars
+    if IFX.Core and IFX.Core.SuppressExperimentalWarnings then
+        IFX.Core:SuppressExperimentalWarnings()
+    end
+
     -- Snapshot baseline before first apply
     CaptureBaselineCVars()
 

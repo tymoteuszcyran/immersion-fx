@@ -28,6 +28,47 @@ local function CreateCheckbox(parent, labelText, initialValue, onClick)
     return cb
 end
 
+-- Helper to create styled slider
+local function CreateSlider(parent, name, labelText, minVal, maxVal, step, initialValue, onValueChanged)
+    local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
+    slider:SetMinMaxValues(minVal, maxVal)
+    slider:SetValueStep(step)
+    slider:SetObeyStepOnDrag(true)
+    slider:SetValue(initialValue)
+    
+    local textFS = _G[name .. "Text"] or slider.Text
+    local lowFS = _G[name .. "Low"] or slider.Low
+    local highFS = _G[name .. "High"] or slider.High
+    
+    local function updateText(val)
+        if textFS then
+            local isDefault = math.abs(val - 1.0) < 0.001
+            textFS:SetText(string.format("%s: |cffffd100%.1fx|r%s", labelText, val, (isDefault and " |cff888888(Default)|r" or "")))
+        end
+    end
+
+    if lowFS then
+        lowFS:SetText(string.format("%.1fx", minVal))
+    end
+    if highFS then
+        highFS:SetText(string.format("%.1fx", maxVal))
+    end
+    updateText(initialValue)
+
+    slider:SetScript("OnValueChanged", function(self, value)
+        local rounded = math.floor((value / step) + 0.5) * step
+        updateText(rounded)
+        onValueChanged(rounded)
+    end)
+
+    slider.UpdateValue = function(self, val)
+        self:SetValue(val)
+        updateText(val)
+    end
+
+    return slider
+end
+
 function UI:CreateOptionsPanel()
     if self.panel then return self.panel end
 
@@ -124,6 +165,43 @@ function UI:CreateOptionsPanel()
     end
     self.profileButtons = profileButtons
 
+    -- Divider 2
+    local divider2 = panel:CreateTexture(nil, "ARTWORK")
+    divider2:SetColorTexture(0.3, 0.3, 0.3, 0.6)
+    divider2:SetHeight(1)
+    divider2:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", -10, -16)
+    divider2:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
+
+    -- ==========================================
+    -- UI Section
+    -- ==========================================
+    local uiHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    uiHeader:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", -10, -28)
+    uiHeader:SetText("UI")
+
+    local uiSubtext = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    uiSubtext:SetPoint("TOPLEFT", uiHeader, "BOTTOMLEFT", 0, -4)
+    uiSubtext:SetText("Adjust in-world combat text scaling for enhanced visibility.")
+
+    -- World Text Scale Slider
+    local currentScale = IFX.Config:GetFloatingTextScale()
+    local textScaleSlider = CreateSlider(panel, "ImmersionFX_WorldTextScaleSlider", "Floating Combat Text Scale", 0.5, 2.5, 0.1, currentScale, function(val)
+        IFX.Config:SetFloatingTextScale(val)
+    end)
+    textScaleSlider:SetPoint("TOPLEFT", uiSubtext, "BOTTOMLEFT", 0, -22)
+    textScaleSlider:SetWidth(220)
+    self.textScaleSlider = textScaleSlider
+
+    -- Reset Button
+    local resetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    resetBtn:SetSize(70, 22)
+    resetBtn:SetPoint("LEFT", textScaleSlider, "RIGHT", 24, 0)
+    resetBtn:SetText("Reset")
+    resetBtn:SetScript("OnClick", function()
+        textScaleSlider:UpdateValue(1.0)
+        IFX.Config:SetFloatingTextScale(1.0)
+    end)
+
     -- Register with Blizzard Settings UI
     if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
         local category = Settings.RegisterCanvasLayoutCategory(panel, "ImmersionFX")
@@ -145,6 +223,9 @@ function UI:CreateOptionsPanel()
             if p then
                 btn:SetChecked(p.id == active)
             end
+        end
+        if self.textScaleSlider then
+            self.textScaleSlider:UpdateValue(IFX.Config:GetFloatingTextScale())
         end
     end)
 
